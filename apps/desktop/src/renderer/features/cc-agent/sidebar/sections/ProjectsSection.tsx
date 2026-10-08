@@ -50,6 +50,7 @@ import { cn } from '@/lib/utils';
 import { Tip } from '@/components/ui/tooltip';
 import { toast } from '@/lib/toast';
 import { useWorkspaceSidebar } from '../WorkspaceSidebarProvider';
+import { useWorkspaceSessionReveal } from '../../hooks/useWorkspaceSessionReveal';
 import { WorkspaceProjectList } from '../WorkspaceProjectList';
 import { useEffectiveSelectedMachineId } from '@/features/device-link/useMachineSwitcher';
 import { useRemoteDevices } from '@/features/device-link/remoteProjectsStore';
@@ -509,35 +510,17 @@ export function ProjectsSection({
   );
   // 正在看的任务 id:files 路由下回落到被浏览文件所属任务。
   const viewedIdForSort = viewedSessionId ?? activeSessionId;
-  const revealedWorkspaceSession = useRef<string | undefined>(undefined);
-  useEffect(() => {
-    if (!workspacesReady || !viewedIdForSort) {
-      revealedWorkspaceSession.current = undefined;
-      return;
-    }
-    if (!workspaceGroupingActive || revealedWorkspaceSession.current === viewedIdForSort) return;
-    const project = projects.find((entry) =>
-      entry.sessions.some((session) => session.id === viewedIdForSort),
-    );
-    if (!project) return;
-    const projectKey = projectComparisonKey(project.projectKey);
-    const workspace = workspaces.find((entry) => entry.projectKeys.includes(projectKey));
-    revealedWorkspaceSession.current = viewedIdForSort;
-    if (workspace?.collapsed) {
-      void mutateWorkspace({ type: 'set-collapsed', id: workspace.id, collapsed: false }).catch(
-        () => toast.error(t('ccAgent.sidebar.workspaces.saveError')),
-      );
-    }
-  }, [
-    viewedIdForSort,
+  useWorkspaceSessionReveal({
+    sessionId: viewedIdForSort,
+    ready: workspacesReady,
+    enabled: workspaceGroupingActive,
     projects,
     workspaces,
-    workspacesReady,
-    workspaceGroupingActive,
-    projectComparisonKey,
+    collapsedProjects: collapsed,
+    comparisonKey: projectComparisonKey,
+    onToggleProject,
     mutateWorkspace,
-    t,
-  ]);
+  });
   const naturalPriorityContext = useMemo(() => {
     const waiting = new Set<string>(urgentSet);
     for (const [sessionId, kind] of attentionKinds) {
